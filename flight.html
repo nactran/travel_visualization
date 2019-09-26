@@ -1,0 +1,247 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <!-- put data here -->
+        <script>
+            var cord = {
+                '台州': [121.1353, 28.6688],
+                '臨安':[120.1796,30.2618],
+                '建州':[118.2945,27.0206],
+                '尤溪縣': [118.1130,26.1036],
+                '同安縣': [118.1564,24.72],
+                '崇安縣': [118.0276,27.7561],
+                '南康軍': [115.9628,29.4034],
+                '江南西路': [115.8554,28.6724],
+                '兩浙東路': [120.5855,29.9986],
+                '漳州': [117.6512,24.5098],
+                '潭州':[112.9288,28.1522]
+            };
+
+            var tripData = [
+                ['尤溪縣','尤溪縣','建炎四年',1130,'出生'],
+                ['尤溪縣','建州','紹興七年',1137,'寓居建州浦城'],
+                ['建州','同安縣','紹興二十三年',1153,'到同安任泉州同安縣主簿一職'],
+                ['同安縣','建州','紹興二十七年',1157,'任滿罷歸，拜李侗為師'],
+                ['建州','崇安縣','隆興元年',1163,'請辭歸崇安'],
+                ['崇安縣','南康軍','淳熙五年',1178,'任知南康軍兼管內勸農事'],
+                ['南康軍','江南西路','淳熙六年',1179,'任江西提举常平茶盐公事'],
+                ['江南西路','兩浙東路','淳熙八年',1181,'任浙東提举常平茶盐公事'],
+                ['兩浙東路','台州','','',''],
+                ['台州','江南西路','淳熙十四年',1187,'江西路提點刑獄公事'],
+                ['江南西路','漳州','紹熙元年',1190,'到漳州任知漳州'],
+                ['漳州','潭州','紹熙五年',1194,'任知潭州、荊湖路安撫'],
+                ['潭州','臨安','紹熙五年',1194,'除煥章閣待制兼侍講，於行宮便殿奏事'],
+                ['臨安','建州','紹熙五年',1194,'還居建陽考亭'],
+                ['建州','建州','','','']
+            ];
+
+        </script>
+        <script src="./d3.js"></script>
+        <script src="./jquery.js"></script>
+        <script>
+            //参数，svg元素，飞机的放缩比例，飞机的起点x坐标，y坐标，飞机的终点x坐标，y坐标
+
+            function drawFlight(svg, scale, x1, y1, x2, y2) {
+                var centerX = 34.573;
+                var centerY = 35.501;
+
+                var newX = centerX * scale;
+                var newY = centerY * scale;
+
+                var tranX = (x1 - newX) / scale;
+                var tranY = (y1 - newY) / scale;
+
+                d3.selectAll(".flight-route")
+                    .attr("stroke-dasharray","5,5")
+                    .attr("marker-end",null)
+
+                var flightPath = d3.select('svg')
+                    .append("path")
+                    .attr({
+                        "d": drawArc(x1, y1, x2, y2),
+                        "stroke": "#FDDA2C",
+                        "stroke-width":"2",
+                        "class":"flight-route",
+                        "fill": "none",
+                        "marker-end": function(d) { return "url(#arrow)";},
+                        "opacity":"0.8"
+
+            });
+
+
+
+            }
+
+            function translateAlong(path, scale) {
+                var l = path.getTotalLength();
+                var start = false;
+                var startPoint;
+
+                return function (d, i, a) {
+                    return function (t) {
+                        var p = path.getPointAtLength(t * l);
+
+                        if (!start) {
+                            startPoint = p;
+                            start = true;
+                            return "translate(" + (p.x) + "," + (p.y) + ") scale(" + scale + ")";
+                        } else {
+                            var deg = Math.atan((p.y - startPoint.y) / (p.x - startPoint.x)) / Math.PI * 180;
+                            startPoint = p;
+                            return "translate(" + (p.x) + "," + (p.y) + ") scale(" + scale + ") rotate(" + deg + ")";
+                        }
+                    };
+                };
+            }
+
+            function drawArc(sourceX, sourceY, targetX, targetY) {
+                var dx = targetX - sourceX,
+                    dy = targetY - sourceY,
+                    dr = Math.sqrt(dx * dx + dy * dy);
+                return "M" + sourceX + "," + sourceY + "A" + dr + "," + dr +
+                    " 0 0,1 " + targetX + "," + targetY;
+            }
+        </script>
+    </head>
+
+    <body>
+
+
+        <div id="flight">
+           
+        </div>
+
+        <script>
+
+            var width = $(window).width();
+            var height = $(window).height();
+            var flightCanvas = d3.select("#flight")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .style("background-color", "black");
+
+            var arrowMarker = flightCanvas
+                                .append("defs")
+                                .append("marker")
+                                    .attr("id","arrow")
+                                    .attr("refX","4")
+                                    .attr("refY","3")
+                                    .attr("markerWidth","10")
+                                    .attr("markerHeight","10")
+                                    .attr("orient","auto")
+                                .append("path")
+                                .attr("d", "M0 0 L0 6 L5 3")
+                                .attr("fill","#FDDA2C");
+
+            var scale = 0.05;
+
+            d3.json("./dynastic_boundaries_as_of_1142_ad_ohr (1).json", function (error, data) {
+                //console.log(data);
+
+                //设置基本参数
+                var projection = d3.geo.mercator();
+                var path = d3.geo.path()
+                    .projection(projection
+                        .scale(3000)
+                        .center([118,28])
+                        .translate([width / 2, height / 2]));
+
+                var count = 0;
+
+
+                //绘制地图疆界
+                flightCanvas.selectAll("path")
+                    .data(data.features)
+                    .enter()
+                    .append("path")
+                    .attr({
+                        "d": path,
+                        "stroke": "#465A6B"
+                    });
+
+                //绘制城市
+                var city = flightCanvas.append('g');
+                for (var item in cord){
+                    var x = projection(cord[item])[0];
+                    var y = projection(cord[item])[1];
+                    city
+                        .append('circle')
+                            .attr('cx',(d, i) => {
+                            return x;
+                             })
+                            .attr('cy',(d, i) => {
+                            return y;
+                        })
+                            .attr('r',5)
+                            .attr('stroke-width',1)
+                            .style('stroke','white');
+                    city
+                        .append("svg:a")
+                        .attr("xlink:href", function(d){return "detail_location.html?q="+ item ;})//svg:a 中设置链接
+                        .attr("target", "_blank")//在新标签中打开
+                        .append('text')
+                            .attr("font-size","12")
+                            .attr("transform","translate(" + (x+5) + "," + (y+5) + ")")
+                            .attr('fill','white')
+                            .attr('class','none-select')
+                            .text(function(){return item})
+
+                }
+                //填充文字
+                flightCanvas
+                    .append('text')
+                        .attr("font-size","40")
+                        .attr("transform","translate(1080,100)")
+                        .attr('fill','white')
+                        .attr('id','title')
+                        .text('朱熹遊歷圖')
+                flightCanvas
+                    .append('text')
+                        .attr("font-size","24")
+                        .attr("transform","translate(1080,150)")
+                        .attr('fill','white')
+                        .attr('id','ch-year')
+                flightCanvas
+                    .append('text')
+                        .attr("font-size","20")
+                        .attr("transform","translate(1080,180)")
+                        .attr('fill','white')
+                        .attr('id','num-year')
+                flightCanvas
+                    .append('text')
+                        .attr("font-size","20")
+                        .attr("transform","translate(1080,210)")
+                        .attr('fill','white')
+                        .attr('id','event')
+
+                //绘制路線
+
+                function drawData(){
+                    var x1 = projection(cord[tripData[count][0]])[0];
+                    var y1 = projection(cord[tripData[count][0]])[1];
+                    var x2 = projection(cord[tripData[count][1]])[0];
+                    var y2 = projection(cord[tripData[count][1]])[1];
+                    drawFlight(flightCanvas, scale, x1, y1, x2, y2);
+
+                    d3.select('#ch-year')
+                        .text(tripData[count][2])
+                    d3.select('#num-year')
+                        .text(tripData[count][3])
+                    d3.select('#event')
+                        .text(tripData[count][4])
+
+                    count ++;
+                    if(count>=tripData.length){
+                        d3.selectAll('.flight-route').remove();
+                        count = 0;
+                    };
+                }
+
+                var t = setInterval(drawData,1400)
+
+            });
+        </script>
+    </body>
+</html>
